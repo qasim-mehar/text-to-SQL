@@ -322,5 +322,4 @@ def seed():
 
 
 seed()
-
 conn.close()
