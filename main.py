@@ -217,3 +217,101 @@ GROUP BY strftime('%Y-%m', sale_date)
 ORDER BY month;""",
     },
 ]
+
+
+# 3. PROMPT — includes strict anti-pattern rules
+
+
+def build_prompt() -> ChatPromptTemplate:
+    example_prompt = ChatPromptTemplate.from_messages(
+        [
+            ("human", "{question}"),
+            ("ai", "{sql}"),
+        ]
+    )
+    few_shot = FewShotChatMessagePromptTemplate(
+        example_prompt=example_prompt,
+        examples=FEW_SHOT_EXAMPLES,
+    )
+
+    system = """You are an expert SQLite query generator. Your output must be a single, correct, executable SQLite query.
+
+━━━ STRICT OUTPUT RULES ━━━
+1. Output ONLY the raw SQL — no markdown, no backticks, no explanation, no comments.
+2. Never use SELECT * — always name specific columns.
+3. Use table aliases (e for employees, d for departments, s for sales, ex for expenses).
+4. Always end with a semicolon.
+5. If the question is completely unrelated to the schema, output exactly: NULL
+
+━━━ ACCURACY RULES (CRITICAL) ━━━
+
+RULE A — PRE-AGGREGATION (most common bug):
+When joining two tables that BOTH have multiple rows per entity (e.g. sales + expenses,
+or orders + order_items), NEVER join them raw and then GROUP BY.
+This causes row multiplication and wrong SUM values.
+ALWAYS pre-aggregate each table in a subquery or CTE first, then join the results.
+
+  WRONG:
+    SELECT e.id, SUM(s.amount), SUM(ex.amount)
+    FROM employees e
+    JOIN sales s ON e.id = s.rep_id
+    JOIN expenses ex ON e.dept_id = ex.dept_id   ← fan-out here
+    GROUP BY e.id
+
+  CORRECT:
+    WITH rep_sales AS (SELECT rep_id, SUM(amount) AS total FROM sales GROUP BY rep_id),
+         dept_exp  AS (SELECT dept_id, SUM(amount) AS total FROM expenses GROUP BY dept_id)
+    SELECT e.id, rep_sales.total, dept_exp.total
+    FROM employees e
+    JOIN rep_sales ON e.id = rep_sales.rep_id
+    LEFT JOIN dept_exp ON e.dept_id = dept_exp.dept_id
+
+RULE B — WINDOW FUNCTIONS vs SELF-JOINS:
+When computing per-group statistics (avg salary per department), use window functions.
+NEVER combine a window function with a self-join on the same table.
+Use a CTE to compute the window function first, then filter in the outer query.
+
+  WRONG:
+    SELECT e.salary, AVG(e2.salary) OVER (PARTITION BY e.dept_id)
+    FROM employees e JOIN employees e2 ON e.dept_id = e2.dept_id  ← multiplies rows
+
+  CORRECT:
+    WITH stats AS (
+        SELECT *, AVG(salary) OVER (PARTITION BY dept_id) AS dept_avg FROM employees
+    )
+    SELECT * FROM stats WHERE salary > dept_avg
+
+RULE C — DIVISION SAFETY:
+Always wrap denominators in NULLIF(value, 0) to prevent division-by-zero errors.
+  CORRECT: value / NULLIF(denominator, 0)
+
+RULE D — NULL HANDLING:
+Use COALESCE(value, 0) when a LEFT JOIN column might be NULL due to no matching rows.
+
+RULE E — DATE FILTERING IN SQLITE:
+Use strftime('%Y', date_column) = '2024' for year filtering.
+Use strftime('%Y-%m', date_column) for month grouping.
+
+RULE F — SELF-JOINS FOR HIERARCHY:
+For management chains, use LEFT JOIN employees m ON e.manager_id = m.employee_id.
+Repeat for each level. This is correct — do not avoid it.
+
+RULE G — ROLE FILTERING:
+When the user says "sales reps", "managers", "engineers" or any job role,
+always add a WHERE filter on job_title using LIKE '%keyword%'.
+Do NOT return all employees who happen to have data in a fact table.
+The fact table (sales, expenses) having a row for an employee does NOT
+mean that employee has that role — always filter by job_title or department.
+
+━━━ SCHEMA ━━━
+{schema}
+
+{error_context}"""
+
+    return ChatPromptTemplate.from_messages(
+        [
+            ("system", system),
+            few_shot,
+            ("human", "{question}"),
+        ]
+    )
