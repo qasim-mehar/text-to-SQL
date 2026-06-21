@@ -44,3 +44,27 @@ FORBIDDEN = {
     "REPLACE",
     "CREATE",
 }
+
+
+# 1. SCHEMA — DDL format, includes types + FK relationships
+
+
+def get_schema() -> str:
+    inspector = inspect(engine)
+    ddl_parts = []
+    for table in inspector.get_table_names():
+        cols = inspector.get_columns(table)
+        fks = inspector.get_foreign_keys(table)
+        col_defs = [f"  {c['name']} {c['type']}" for c in cols]
+        fk_defs = [
+            f"  FOREIGN KEY ({', '.join(fk['constrained_columns'])}) "
+            f"REFERENCES {fk['referred_table']} ({', '.join(fk['referred_columns'])})"
+            for fk in fks
+        ]
+        body = ",\n".join(col_defs + fk_defs)
+        ddl_parts.append(f"CREATE TABLE {table} (\n{body}\n);")
+    return "\n\n".join(ddl_parts)
+
+
+SCHEMA = get_schema()
+logger.info(f"Schema loaded: {SCHEMA.count('CREATE TABLE')} tables.")
