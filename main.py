@@ -315,3 +315,35 @@ mean that employee has that role — always filter by job_title or department.
             ("human", "{question}"),
         ]
     )
+
+
+# 4. CLEAN SQL OUTPUT
+
+
+def clean_sql(raw: str) -> str:
+    sql = raw.strip()
+    sql = re.sub(r"^```(?:sql)?\s*\n?", "", sql, flags=re.IGNORECASE)
+    sql = re.sub(r"\n?```$", "", sql)
+    sql = sql.strip()
+    if sql.upper() == "NULL":
+        return "NULL"
+    if ";" in sql:
+        sql = sql[: sql.index(";") + 1]
+    return sql.strip()
+
+
+# 5. VALIDATION — blocks all destructive SQL
+
+
+def validate_sql(sql: str) -> str:
+    if sql.upper() == "NULL":
+        return sql
+    tokens = sql.upper().split()
+    if not tokens:
+        raise ValueError("Empty SQL generated.")
+    if tokens[0] != "SELECT" and tokens[0] != "WITH":
+        raise ValueError(f"Only SELECT/WITH queries allowed. Got: '{tokens[0]}'")
+    found = FORBIDDEN.intersection(set(tokens))
+    if found:
+        raise ValueError(f"Forbidden keyword(s) in query: {found}")
+    return sql
