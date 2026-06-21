@@ -368,3 +368,54 @@ def execute_sql(sql: str) -> dict:
             return {"sql": sql, "data": data, "error": None}
     except exc.SQLAlchemyError as e:
         return {"sql": sql, "data": None, "error": str(e)}
+
+
+# 7. CHAIN + RETRY LOOP
+#    On failure, injects error into prompt — never mutates original question
+
+_prompt = build_prompt()
+_sql_chain = _prompt | model | StrOutputParser() | RunnableLambda(clean_sql)
+
+
+def ask(question: str, max_retries: int = 2) -> dict:
+    last_error = None
+
+    for attempt in range(max_retries + 1):
+        if attempt > 0:
+            logger.warning(f"Retry {attempt}/{max_retries} — error was: {last_error}")
+
+        error_context = (
+            f"⚠️ Your previous attempt produced invalid SQL.\n"
+            f"Error: {last_error}\n"
+            f"Re-read the ACCURACY RULES above carefully and fix the query."
+            if last_error
+            else ""
+        )
+
+        try:
+            sql = _sql_chain.invoke(
+                {
+                    "schema": SCHEMA,
+                    "question": question,
+                    "error_context": error_context,
+                }
+            )
+        except Exception as e:
+            logger.error(f"Chain error: {e}")
+            return {"sql": None, "data": None, "error": str(e)}
+
+        logger.info(f"Generated SQL:\n{sql}")
+
+        try:
+            sql = validate_sql(sql)
+        except ValueError as e:
+            return {"sql": sql, "data": None, "error": str(e)}
+
+        result = execute_sql(sql)
+        if result["error"] is None:
+            return result
+
+        last_error = result["error"]
+
+    logger.error(f"All retries exhausted. Last error: {last_error}")
+    return result
