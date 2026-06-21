@@ -90,232 +90,511 @@ conn.commit()
 # SEED DATA
 def seed():
 
+    # 1. DEPARTMENTS
+    # 6 departments. Finance has NO expenses → tests LEFT JOIN + NULL queries.
+
     depts = [
-        ("Engineering", "San Francisco", 5000000),
-        ("Sales", "New York", 3000000),
-        ("Marketing", "Chicago", 1500000),
-        ("Product", "San Francisco", 1200000),
-        ("HR", "Austin", 800000),
+        #  name             location         budget_usd
+        ("Engineering", "San Francisco", 5_000_000),  # 1
+        ("Sales", "New York", 3_000_000),  # 2
+        ("Marketing", "Chicago", 1_500_000),  # 3
+        ("Product", "San Francisco", 1_200_000),  # 4
+        ("HR", "Austin", 800_000),  # 5
+        ("Finance", "New York", 900_000),  # 6 ← zero expenses (intentional)
     ]
     cursor.executemany(
-        "INSERT INTO departments (department_name, location, budget_usd) VALUES (?, ?, ?);",
+        "INSERT INTO departments (department_name, location, budget_usd) VALUES (?,?,?);",
         depts,
     )
 
+    # 2. EMPLOYEES  (25 people, 3-level hierarchy)
+    #
+    # Hierarchy:
+    #   Level 1 (no manager):   Alice(1), Diana(4), George(7), Ian(9), Kevin(11), Rachel(21)
+    #   Level 2 (mgr=L1):       Bob(2),Charlie(3),Mike(13),Oscar(15) → mgr=Alice(1)
+    #                            Evan(5),Fiona(6),Laura(12),Tom(22)  → mgr=Diana(4)
+    #                            Hannah(8),Nina(14),Sara(23)          → mgr=George(7)
+    #                            Julia(10),Liam(24)                   → mgr=Ian(9)
+    #                            Finance team                         → mgr=Rachel(21)
+    #   Level 3 (mgr=L2):       Priya(16),James(17)                  → mgr=Oscar(15)
+    #                            Chen(18),Amara(19)                   → mgr=Bob(2)
+    #
+    # Special cases:
+    #   Kevin(11) — no manager, no direct reports (orphan test, query 17)
+    #   Salaries vary enough to make per-dept ranking & percentile interesting
+    #   Some employees hired before 2022 (tenure > 2yr, below avg salary test)
+
     employees = [
+        # id  first       last          email                          hire_date      dept  title                      salary    mgr
         (
+            1,
             "Alice",
             "Smith",
             "alice.smith@co.com",
             "2020-03-15",
             1,
             "Engineering Manager",
-            145000,
+            145_000,
             None,
         ),
         (
+            2,
             "Bob",
             "Jones",
             "bob.jones@co.com",
             "2021-06-01",
             1,
             "Senior Engineer",
-            120000,
+            120_000,
             1,
         ),
         (
+            3,
             "Charlie",
             "Brown",
             "charlie.brown@co.com",
             "2022-01-10",
             1,
             "Software Engineer",
-            95000,
+            95_000,
             1,
         ),
         (
+            4,
             "Diana",
             "Prince",
             "diana.prince@co.com",
             "2019-11-20",
             2,
             "VP of Sales",
-            160000,
+            160_000,
             None,
         ),
         (
+            5,
             "Evan",
             "Wright",
             "evan.wright@co.com",
             "2020-08-05",
             2,
             "Sales Rep",
-            85000,
+            85_000,
             4,
         ),
         (
+            6,
             "Fiona",
             "Garcia",
             "fiona.garcia@co.com",
             "2021-02-14",
             2,
             "Account Executive",
-            90000,
+            90_000,
             4,
         ),
         (
+            7,
             "George",
             "Miller",
             "george.miller@co.com",
             "2023-03-01",
             3,
             "Marketing Lead",
-            88000,
+            88_000,
             None,
         ),
         (
+            8,
             "Hannah",
             "Davis",
             "hannah.davis@co.com",
             "2022-07-20",
             3,
             "Content Specialist",
-            65000,
+            65_000,
             7,
         ),
         (
+            9,
             "Ian",
             "Wilson",
             "ian.wilson@co.com",
             "2020-05-12",
             4,
             "Product Manager",
-            115000,
+            115_000,
             None,
         ),
         (
+            10,
             "Julia",
             "Moore",
             "julia.moore@co.com",
             "2021-09-01",
             4,
             "Product Designer",
-            98000,
+            98_000,
             9,
         ),
         (
+            11,
             "Kevin",
             "Taylor",
             "kevin.taylor@co.com",
             "2023-01-15",
             5,
             "HR Generalist",
-            60000,
+            60_000,
             None,
-        ),
+        ),  # orphan
         (
+            12,
             "Laura",
             "Anderson",
             "laura.anderson@co.com",
             "2018-04-10",
             2,
             "Sales Rep",
-            92000,
+            92_000,
             4,
         ),
         (
+            13,
             "Mike",
             "Thomas",
             "mike.thomas@co.com",
             "2022-11-01",
             1,
             "Software Engineer",
-            92000,
+            92_000,
             1,
         ),
         (
+            14,
             "Nina",
             "Jackson",
             "nina.jackson@co.com",
             "2023-06-15",
             3,
             "SEO Analyst",
-            58000,
+            58_000,
             7,
         ),
         (
+            15,
             "Oscar",
             "White",
             "oscar.white@co.com",
             "2019-08-20",
             1,
             "Staff Engineer",
-            135000,
+            135_000,
             1,
         ),
+        (
+            16,
+            "Priya",
+            "Sharma",
+            "priya.sharma@co.com",
+            "2023-03-10",
+            1,
+            "Junior Engineer",
+            78_000,
+            15,
+        ),  # L3
+        (
+            17,
+            "James",
+            "Lee",
+            "james.lee@co.com",
+            "2023-07-01",
+            1,
+            "Junior Engineer",
+            76_000,
+            15,
+        ),  # L3
+        (
+            18,
+            "Chen",
+            "Wei",
+            "chen.wei@co.com",
+            "2022-09-12",
+            1,
+            "Software Engineer",
+            96_000,
+            2,
+        ),  # L3
+        (
+            19,
+            "Amara",
+            "Diallo",
+            "amara.diallo@co.com",
+            "2023-01-20",
+            1,
+            "Software Engineer",
+            93_000,
+            2,
+        ),  # L3
+        (
+            20,
+            "Sara",
+            "Lopez",
+            "sara.lopez@co.com",
+            "2022-05-10",
+            3,
+            "Marketing Analyst",
+            72_000,
+            7,
+        ),
+        (
+            21,
+            "Rachel",
+            "Kim",
+            "rachel.kim@co.com",
+            "2018-11-01",
+            6,
+            "Finance Director",
+            155_000,
+            None,
+        ),
+        (
+            22,
+            "Tom",
+            "Harris",
+            "tom.harris@co.com",
+            "2020-03-22",
+            2,
+            "Sales Rep",
+            87_000,
+            4,
+        ),
+        (
+            23,
+            "Yuki",
+            "Tanaka",
+            "yuki.tanaka@co.com",
+            "2021-08-15",
+            3,
+            "Brand Strategist",
+            80_000,
+            7,
+        ),
+        (
+            24,
+            "Liam",
+            "O'Brien",
+            "liam.obrien@co.com",
+            "2022-04-01",
+            4,
+            "UX Researcher",
+            88_000,
+            9,
+        ),
+        (
+            25,
+            "Fatima",
+            "Malik",
+            "fatima.malik@co.com",
+            "2019-06-17",
+            6,
+            "Financial Analyst",
+            95_000,
+            21,
+        ),
     ]
+
     cursor.executemany(
-        "INSERT INTO employees (first_name, last_name, email, hire_date, department_id, job_title, salary, manager_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?);",
+        """
+        INSERT INTO employees
+            (employee_id, first_name, last_name, email, hire_date, department_id, job_title, salary, manager_id)
+        VALUES (?,?,?,?,?,?,?,?,?);
+    """,
         employees,
     )
 
+    # 3. PROJECTS
+
     projects = [
-        ("Website Redesign", 3, "Completed", 120000, "2023-01-15", "2023-06-30"),
-        ("Mobile App v2", 1, "Active", 300000, "2023-09-01", "2024-12-31"),
-        ("CRM Integration", 2, "Active", 150000, "2024-01-10", "2024-08-15"),
-        ("Q4 Ad Campaign", 3, "Active", 80000, "2024-10-01", "2024-12-31"),
-        ("Data Pipeline", 1, "Completed", 200000, "2023-03-01", "2024-01-15"),
+        ("Website Redesign", 3, "Completed", 120_000, "2023-01-15", "2023-06-30"),
+        ("Mobile App v2", 1, "Active", 300_000, "2023-09-01", "2024-12-31"),
+        ("CRM Integration", 2, "Active", 150_000, "2024-01-10", "2024-08-15"),
+        ("Q4 Ad Campaign", 3, "Active", 80_000, "2024-10-01", "2024-12-31"),
+        ("Data Pipeline", 1, "Completed", 200_000, "2023-03-01", "2024-01-15"),
+        ("Finance Dashboard", 6, "Active", 90_000, "2024-03-01", "2024-09-30"),
+        ("HR Platform", 5, "Cancelled", 45_000, "2024-01-01", "2024-04-01"),
     ]
     cursor.executemany(
-        "INSERT INTO projects (project_name, department_id, status, budget_usd, start_date, end_date) VALUES (?, ?, ?, ?, ?, ?);",
+        "INSERT INTO projects (project_name, department_id, status, budget_usd, start_date, end_date) VALUES (?,?,?,?,?,?);",
         projects,
     )
 
-    sales_data = []
+    # 4. SALES
     customers = [
         "Acme Corp",
         "Globex",
         "Initech",
         "Umbrella",
-        "Stark Ind",
-        "Wayne Ent",
-        "Cyberdyne",
+        "Stark Industries",
+        "Wayne Enterprises",
+        "Cyberdyne Systems",
+        "Oscorp",
+        "Weyland Corp",
+        "Massive Dynamic",
     ]
-    products = ["SaaS Basic", "SaaS Pro", "SaaS Enterprise", "Consulting", "Support"]
+
+    products_amounts = {
+        "SaaS Enterprise": (30_000, 95_000),
+        "Consulting": (25_000, 80_000),
+        "SaaS Pro": (10_000, 45_000),
+        "SaaS Basic": (5_000, 18_000),
+        "Support": (3_000, 12_000),
+    }
+
     regions = ["North America", "Europe", "Asia"]
-    for i in range(40):
-        rep = random.choice([4, 5, 6, 12])
-        amt = round(random.uniform(5000, 95000), 2)
-        d = (datetime(2024, 1, 1) + timedelta(days=random.randint(0, 365))).strftime(
-            "%Y-%m-%d"
-        )
-        sales_data.append(
+
+    # Sales reps and their monthly quota targets (shapes their output)
+    rep_profiles = {
+        5: {
+            "name": "Evan",
+            "monthly_sales": 2,
+            "preferred_products": ["SaaS Pro", "SaaS Basic"],
+            "std": "low",
+        },
+        6: {
+            "name": "Fiona",
+            "monthly_sales": 2,
+            "preferred_products": ["SaaS Enterprise", "Consulting"],
+            "std": "high",
+        },
+        12: {
+            "name": "Laura",
+            "monthly_sales": 3,
+            "preferred_products": ["SaaS Enterprise", "SaaS Pro"],
+            "std": "medium",
+        },
+        22: {
+            "name": "Tom",
+            "monthly_sales": 2,
+            "preferred_products": ["SaaS Pro", "SaaS Basic"],
+            "std": "medium",
+        },
+        4: {
+            "name": "Diana",
+            "monthly_sales": 1,
+            "preferred_products": ["Consulting", "SaaS Enterprise"],
+            "std": "high",
+        },
+    }
+
+    sales_rows = []
+
+    for month in range(1, 13):  # all 12 months of 2024
+        for rep_id, profile in rep_profiles.items():
+            n_sales = profile["monthly_sales"]
+
+            # Evan (std=low) gets consistent amounts — lowest stddev
+            # Fiona/Diana (std=high) get wide swings
+
+            for _ in range(n_sales):
+                product = random.choice(profile["preferred_products"])
+                lo, hi = products_amounts[product]
+
+                if profile["std"] == "low":
+                    # Narrow band: ±10% of midpoint
+                    mid = (lo + hi) / 2
+                    amt = round(random.uniform(mid * 0.90, mid * 1.10), 2)
+                elif profile["std"] == "high":
+                    amt = round(random.uniform(lo, hi), 2)
+                else:
+                    amt = round(random.uniform(lo * 1.1, hi * 0.9), 2)
+
+                # Each rep must cover ALL regions across the year
+                # First 3 months: rotate through all 3 regions deterministically
+                if month <= 3:
+                    region = regions[(month - 1) % 3]
+                else:
+                    region = random.choice(regions)
+
+                day = random.randint(1, 28)
+                date = f"2024-{month:02d}-{day:02d}"
+
+                sales_rows.append(
+                    (
+                        random.choice(customers),
+                        date,
+                        amt,
+                        product,
+                        rep_id,
+                        region,
+                    )
+                )
+
+    # Extra big deals from Laura to make her clearly #1
+    for month in [3, 6, 9, 11]:
+        sales_rows.append(
             (
-                random.choice(customers),
-                d,
-                amt,
-                random.choice(products),
-                rep,
+                "Acme Corp",
+                f"2024-{month:02d}-15",
+                round(random.uniform(70_000, 95_000), 2),
+                "SaaS Enterprise",
+                12,
                 random.choice(regions),
             )
         )
+
     cursor.executemany(
-        "INSERT INTO sales (customer_name, sale_date, amount_usd, product, sales_rep_id, region) VALUES (?, ?, ?, ?, ?, ?);",
-        sales_data,
+        "INSERT INTO sales (customer_name, sale_date, amount_usd, product, sales_rep_id, region) VALUES (?,?,?,?,?,?);",
+        sales_rows,
     )
 
-    expenses = []
-    cats = ["Travel", "Software", "Office Supplies", "Training", "Events", "Hardware"]
-    for _ in range(50):
-        did = random.randint(1, 5)
-        amt = round(random.uniform(50, 8000), 2)
-        d = (datetime(2024, 1, 1) + timedelta(days=random.randint(0, 365))).strftime(
-            "%Y-%m-%d"
-        )
-        expenses.append((did, random.choice(cats), amt, d, "Monthly operational cost"))
+    # 5. EXPENSES — 200 rows
+    #
+    # Design goals:
+    #   - Dept 6 (Finance) gets ZERO expenses → tests "dept with no expenses" query (Q16)
+    #   - Dept 2 (Sales) gets high expenses → some months expenses > sales (interesting HAVING)
+    #   - Realistic category amounts:
+    #       Travel:          $800–$5,000
+    #       Software:        $200–$3,000
+    #       Hardware:        $500–$8,000
+    #       Training:        $1,000–$6,000
+    #       Events:          $2,000–$12,000
+    #       Office Supplies: $50–$800
+    #   - Spread across all 12 months of 2024
+
+    category_ranges = {
+        "Travel": (800, 5_000),
+        "Software": (200, 3_000),
+        "Hardware": (500, 8_000),
+        "Training": (1_000, 6_000),
+        "Events": (2_000, 12_000),
+        "Office Supplies": (50, 800),
+    }
+
+    # dept_id → how many expense rows per month (Finance=6 gets 0)
+    dept_expense_volume = {1: 4, 2: 5, 3: 3, 4: 2, 5: 2, 6: 0}
+
+    expenses_rows = []
+    for month in range(1, 13):
+        for dept_id, volume in dept_expense_volume.items():
+            for _ in range(volume):
+                category = random.choice(list(category_ranges.keys()))
+                lo, hi = category_ranges[category]
+                amt = round(random.uniform(lo, hi), 2)
+                day = random.randint(1, 28)
+                date = f"2024-{month:02d}-{day:02d}"
+                expenses_rows.append(
+                    (
+                        dept_id,
+                        category,
+                        amt,
+                        date,
+                        f"{category} - Q{((month - 1) // 3) + 1}",
+                    )
+                )
+
     cursor.executemany(
-        "INSERT INTO expenses (department_id, category, amount_usd, expense_date, description) VALUES (?, ?, ?, ?, ?);",
-        expenses,
+        "INSERT INTO expenses (department_id, category, amount_usd, expense_date, description) VALUES (?,?,?,?,?);",
+        expenses_rows,
     )
 
     conn.commit()
