@@ -347,3 +347,24 @@ def validate_sql(sql: str) -> str:
     if found:
         raise ValueError(f"Forbidden keyword(s) in query: {found}")
     return sql
+
+
+# 6. EXECUTION — uses shared engine, caps rows
+
+
+def execute_sql(sql: str) -> dict:
+    if sql.upper() == "NULL":
+        return {
+            "sql": sql,
+            "data": None,
+            "error": "Question is unrelated to the database schema.",
+        }
+    try:
+        with engine.connect() as conn:
+            result = conn.execute(text(sql))
+            rows = result.fetchmany(MAX_ROWS)
+            columns = list(result.keys())
+            data = [dict(zip(columns, row)) for row in rows]
+            return {"sql": sql, "data": data, "error": None}
+    except exc.SQLAlchemyError as e:
+        return {"sql": sql, "data": None, "error": str(e)}
