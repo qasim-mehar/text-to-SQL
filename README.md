@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://readme-typing-svg.demolab.com?font=Inter&weight=700&size=42&pause=1000&color=18181B&center=true&vCenter=true&width=600&lines=QueryBridge" alt="QueryBridge" />
+<img src="https://readme-typing-svg.demolab.com?font=Inter&weight=700&size=42&pause=1000&color=F5F5F5&center=true&vCenter=true&width=600&lines=QueryBridge" alt="QueryBridge" />
 
 **Ask your database anything. In plain English.**
 
