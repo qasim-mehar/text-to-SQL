@@ -8,6 +8,23 @@ from app.core.config import get_settings
 from app.features.text_to_sql.router import router as text_to_sql_router
 from app.features.text_to_sql.dependencies import get_llm_service
 
+
+import os
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+app = FastAPI()
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=False,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
@@ -43,9 +60,12 @@ def create_app() -> FastAPI:
     app.add_middleware(
         CORSMiddleware,
         allow_origins=[
-            "http://localhost:5173", "http://127.0.0.1:5173",
-            "http://localhost:5174", "http://127.0.0.1:5174",
-            "http://localhost:5175", "http://127.0.0.1:5175",
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+            "http://localhost:5174",
+            "http://127.0.0.1:5174",
+            "http://localhost:5175",
+            "http://127.0.0.1:5175",
         ],
         allow_credentials=True,
         allow_methods=["*"],
@@ -54,11 +74,16 @@ def create_app() -> FastAPI:
 
     # Global fallback exception handler
     @app.exception_handler(Exception)
-    async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    async def global_exception_handler(
+        request: Request, exc: Exception
+    ) -> JSONResponse:
         logger.error(f"Unhandled exception on {request.url}: {exc}", exc_info=True)
         return JSONResponse(
             status_code=500,
-            content={"detail": "An internal server error occurred.", "type": "internal_error"},
+            content={
+                "detail": "An internal server error occurred.",
+                "type": "internal_error",
+            },
         )
 
     # Mount feature routers under /api/v1
