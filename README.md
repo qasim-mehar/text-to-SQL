@@ -21,7 +21,7 @@
 
 
 
-![QueryBridge Demo](./ezgif-4b75f9adb779e9e6.gif)
+![QueryBridge Demo](./text-to-sql.gif)
 
 ## What is this?
 

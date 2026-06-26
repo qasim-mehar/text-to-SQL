@@ -9,11 +9,19 @@ from app.features.text_to_sql.router import router as text_to_sql_router
 from app.features.text_to_sql.dependencies import get_llm_service
 
 
+import uvicorn
 import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
+
+
+# ... your routes ...
+
+if __name__ == "__main__":
+    port = int(os.getenv("PORT", 8080))
+    uvicorn.run(app, host="0.0.0.0", port=port)
 
 
 app.add_middleware(
