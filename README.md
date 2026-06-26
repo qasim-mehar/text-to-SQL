@@ -17,6 +17,12 @@
 
 ---
 
+## Demo
+
+
+
+![QueryBridge Demo](./ezgif-4b75f9adb779e9e6.gif)
+
 ## What is this?
 
 QueryBridge is a Text-to-SQL pipeline that converts plain English questions into accurate, executable SQLite queries and runs them instantly against a company analytics database. It is not a wrapper around a single LLM call — it is an engineered pipeline with schema understanding, few-shot teaching, anti-pattern enforcement, and a self-correcting retry loop.
