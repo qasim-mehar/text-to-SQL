@@ -21,7 +21,7 @@
 
 
 
-![QueryBridge Demo](./text-to-sql.gif)
+![QueryBridge Demo](./text-to-sql.webp)
 
 ## What is this?
 
